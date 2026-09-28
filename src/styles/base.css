@@ -1,0 +1,100 @@
+:root {
+  --cream: #FFF6EE;
+  --paper: #FFFFFF;
+  --sand: #F6E9DD;
+  --blush: #FBF1E8;
+  --ink: #4A3F55;
+  --ink-2: #6E6380;
+  --muted: #8C809A;
+  --line: #EFE3D8;
+
+  --ella: #E07E98;
+  --ella-deep: #C45C79;
+  --ella-soft: #FDE6EC;
+  --el: #5E9DD0;
+  --el-deep: #3F7FB4;
+  --el-soft: #E2EFFA;
+  --honey: #F4C66B;
+
+  --f-display: 'Fredoka', system-ui, sans-serif;
+  --f-ui: 'Nunito', system-ui, sans-serif;
+  --f-hand: 'Patrick Hand', cursive;
+  --f-script: 'Caveat', cursive;
+
+  --shadow-card: 0 14px 30px -20px rgba(74, 63, 85, .45);
+  --radius-card: 28px;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--cream);
+  color: var(--ink);
+  font-family: var(--f-ui);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+button { font: inherit; color: inherit; cursor: pointer; }
+button:disabled { cursor: default; }
+input, textarea { font: inherit; color: inherit; }
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--ella); outline-offset: 2px; }
+
+/* ---------- piezas compartidas ---------- */
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; vertical-align: middle; flex: none; }
+.dot.ella { background: var(--ella); }
+.dot.el { background: var(--el); }
+
+.btn {
+  border: 0; border-radius: 18px; height: 54px; padding: 0 22px;
+  font: 600 18px var(--f-display);
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  transition: transform .12s ease, box-shadow .2s ease, background .2s;
+}
+.btn:active:not(:disabled) { transform: scale(.97); }
+.btn:disabled { opacity: .55; }
+.btn.primary { background: var(--ink); color: #fff; box-shadow: 0 10px 20px -10px rgba(74, 63, 85, .7); }
+.btn.rose { background: var(--ella-deep); color: #fff; box-shadow: 0 10px 20px -10px rgba(196, 92, 121, .8); }
+.btn.blue { background: var(--el-deep); color: #fff; box-shadow: 0 10px 20px -10px rgba(63, 127, 180, .8); }
+.btn.soft { background: var(--paper); color: var(--ink); border: 2px solid var(--line); }
+.btn.blue-soft { background: var(--el-soft); color: var(--el-deep); }
+.btn.rose-soft { background: var(--ella-soft); color: var(--ella-deep); }
+.btn.small { height: 44px; font-size: 15px; border-radius: 14px; padding: 0 16px; }
+.btn.block { width: 100%; }
+
+.icon-btn {
+  border: 0; background: transparent; width: 44px; height: 44px; border-radius: 14px;
+  display: grid; place-items: center; color: var(--ink-2); flex: none;
+  transition: background .15s, color .15s, transform .12s;
+}
+.icon-btn:hover:not(:disabled) { background: rgba(74, 63, 85, .06); }
+.icon-btn:active:not(:disabled) { transform: scale(.92); }
+
+.avatar {
+  width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+  font: 600 15px var(--f-display); color: #fff; border: 3px solid var(--cream); flex: none;
+}
+.avatar.ella { background: var(--ella); }
+.avatar.el { background: var(--el); }
+.avatars { display: flex; }
+.avatars .avatar + .avatar { margin-left: -10px; }
+
+.chip {
+  display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px 0 5px;
+  border-radius: 99px; font: 600 15px var(--f-display);
+}
+.chip.ella { background: var(--ella-soft); color: var(--ella-deep); }
+.chip.el { background: var(--el-soft); color: var(--el-deep); }
+.chip .avatar { width: 25px; height: 25px; border: 0; font-size: 12px; }
+
+.field { display: block; width: 100%; margin-bottom: 14px; }
+.field > span { display: block; font-weight: 700; font-size: 14px; color: var(--ink-2); margin: 0 0 6px 6px; }
+.field input {
+  width: 100%; height: 54px; border-radius: 18px; border: 2px solid var(--line); background: #fff;
+  padding: 0 18px; font-size: 16px; outline: none; transition: border-color .15s;
+}
+.field input:focus { border-color: var(--ella); }
+
+.card { background: var(--paper); border-radius: var(--radius-card); box-shadow: var(--shadow-card); }
+
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
