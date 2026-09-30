@@ -1,11 +1,12 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import AppIcon from '@/components/AppIcon.vue'
-import { state, me, partner, nameOf, initialOf, updateCouple, switchWho, logout, resetDemo, clearNotes, memories, showToast } from '@/store/diary'
+import { state, me, partner, partnerJoined, nameOf, initialOf, updateCouple, renewInvite, logout, memories, showToast } from '@/store/diary'
 import { daysBetween } from '@/lib/dates'
 
 const router = useRouter()
+const renewing = ref(false)
 
 const stats = computed(() => {
   const all = memories.value
@@ -17,16 +18,23 @@ const stats = computed(() => {
   ]
 })
 
-function swap() {
-  switchWho()
-  showToast(`Ahora estás como ${nameOf(me.value)}`)
+async function save(patch) {
+  try { await updateCouple(patch); showToast('Guardado') } catch { /* aviso ya mostrado */ }
 }
+
+async function copyCode() {
+  try { await navigator.clipboard.writeText(state.couple.inviteCode); showToast('Código copiado') }
+  catch { showToast(`Tu código es ${state.couple.inviteCode}`) }
+}
+
+async function newCode() {
+  renewing.value = true
+  try { await renewInvite(); showToast('Código nuevo listo') } catch { /* aviso ya mostrado */ } finally { renewing.value = false }
+}
+
 function out() {
   logout()
   router.replace('/login')
-}
-function clear() {
-  if (confirm('¿Borrar todas las notas de este navegador?')) clearNotes()
 }
 </script>
 
@@ -36,10 +44,20 @@ function clear() {
       <div class="big-avatars">
         <span class="avatar ella">{{ initialOf('ella') }}</span>
         <span class="heart">♥</span>
-        <span class="avatar el">{{ initialOf('el') }}</span>
+        <span class="avatar el" :class="{ waiting: !partnerJoined && partner === 'el' }">{{ initialOf('el') }}</span>
       </div>
       <h1>{{ nameOf('ella') }} &amp; {{ nameOf('el') }}</h1>
       <p>{{ state.session?.email }}</p>
+    </section>
+
+    <section v-if="!partnerJoined" class="card block invite">
+      <h2>Invita a tu pareja</h2>
+      <p class="hint">Que entre a la app, elija <b>Crear cuenta</b>, marque "tengo su código" y escriba:</p>
+      <button v-if="state.couple.inviteCode" class="code" aria-label="Copiar código" @click="copyCode">
+        {{ state.couple.inviteCode }}
+        <small>toca para copiar</small>
+      </button>
+      <button class="btn small soft" :disabled="renewing" @click="newCode">{{ state.couple.inviteCode ? 'Generar otro código' : 'Generar código' }}</button>
     </section>
 
     <section class="stats">
@@ -50,33 +68,20 @@ function clear() {
 
     <section class="card block">
       <h2>Nosotros</h2>
-      <label class="field"><span>Nombre de ella</span>
-        <input :value="state.couple.ella" maxlength="20" @change="updateCouple({ ella: $event.target.value.trim() || 'Ella' })" />
-      </label>
-      <label class="field"><span>Nombre de él</span>
-        <input :value="state.couple.el" maxlength="20" @change="updateCouple({ el: $event.target.value.trim() || 'Él' })" />
+      <label class="field"><span>Tu nombre</span>
+        <input :value="state.couple[me]" maxlength="20" @change="save({ [me]: $event.target.value.trim() || nameOf(me) })" />
       </label>
       <label class="field"><span>Juntos desde</span>
-        <input type="date" :value="state.couple.since" @change="updateCouple({ since: $event.target.value || null })" />
+        <input type="date" :value="state.couple.since" @change="save({ since: $event.target.value || null })" />
       </label>
     </section>
 
     <section class="card block">
       <h2>Sesión</h2>
       <div class="row">
-        <span class="chip" :class="me"><span class="avatar" :class="me">{{ initialOf(me) }}</span>Estás como {{ nameOf(me) }}</span>
-        <button class="btn small soft" @click="swap"><AppIcon name="swap" :size="18" /> Cambiar a {{ nameOf(partner) }}</button>
+        <span class="chip" :class="me"><span class="avatar" :class="me">{{ initialOf(me) }}</span>{{ nameOf(me) }}</span>
       </div>
-      <p class="hint">Mientras no haya base de datos, los dos comparten este navegador. Este botón sirve para probar como tu pareja.</p>
       <button class="btn small soft block" @click="out"><AppIcon name="logout" :size="18" /> Cerrar sesión</button>
-    </section>
-
-    <section class="card block">
-      <h2>Datos del prototipo</h2>
-      <div class="row">
-        <button class="btn small soft" @click="resetDemo">Restaurar ejemplo</button>
-        <button class="btn small rose-soft" @click="clear"><AppIcon name="trash" :size="18" /> Vaciar diario</button>
-      </div>
     </section>
   </div>
 </template>
@@ -101,6 +106,11 @@ function clear() {
 .block { padding: 20px; }
 .block h2 { margin: 0 0 14px; font: 600 20px var(--f-display); }
 .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 10px; }
+.avatar.waiting { opacity: .35; }
+.invite { text-align: center; background: linear-gradient(#fff, #FFF7F9); }
+.invite .hint { margin: 0 0 14px; font-size: 14px; }
+.code { display: block; margin: 0 auto 14px; border: 2.5px dashed var(--ella); background: var(--ella-soft); color: var(--ella-deep); border-radius: 18px; padding: 12px 22px; font: 600 34px var(--f-display); letter-spacing: 8px; }
+.code small { display: block; font: 700 11px var(--f-ui); letter-spacing: 1px; text-transform: uppercase; opacity: .8; }
 .hint { font-size: 13px; color: var(--muted); font-weight: 600; margin: 4px 0 14px; line-height: 1.4; }
 
 @media (min-width: 1024px) {

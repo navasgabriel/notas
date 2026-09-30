@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onBeforeUnmount } from 'vue'
 import AppIcon from './AppIcon.vue'
-import { dayNotes, me, partner, nameOf, saveNote, deleteNote, showToast } from '@/store/diary'
+import { state, dayNotes, me, partner, nameOf, saveNote, deleteNote, showToast, loadPhoto } from '@/store/diary'
 import { dayMonth, weekday, todayKey } from '@/lib/dates'
 import { compressImage } from '@/lib/image'
 import { randomPrompt, MOODS } from '@/lib/prompts'
@@ -10,16 +10,20 @@ const props = defineProps({ dayKey: String })
 const emit = defineEmits(['done', 'cancel'])
 
 const existing = dayNotes(props.dayKey)[me.value]
-const img = ref(existing?.img ?? null)
+// foto: se muestra la actual; solo se sube si cambió (imgChanged)
+const img = ref(existing?.hasPhoto ? (state.photos[`${props.dayKey}_${me.value}`] ?? existing.thumb) : null)
+const imgChanged = ref(false)
+if (existing?.hasPhoto) loadPhoto(props.dayKey, me.value).then(full => { if (full && !imgChanged.value) img.value = full }).catch(() => {})
 const title = ref(existing?.title ?? '')
 const text = ref(existing?.text ?? '')
 const mood = ref(existing?.mood ?? '')
 const prompt = ref(randomPrompt())
 const busy = ref(false)
+const saving = ref(false)
 const listening = ref(false)
 
 const isToday = computed(() => props.dayKey === todayKey())
-const canSave = computed(() => (text.value.trim() || title.value.trim() || img.value) && !busy.value)
+const canSave = computed(() => (text.value.trim() || title.value.trim() || img.value) && !busy.value && !saving.value)
 const accent = computed(() => (me.value === 'ella' ? 'rose' : 'blue'))
 
 async function onFile(e) {
@@ -27,23 +31,37 @@ async function onFile(e) {
   e.target.value = ''
   if (!file) return
   busy.value = true
-  try { img.value = await compressImage(file) }
+  try { img.value = await compressImage(file, 1000, 0.78); imgChanged.value = true }
   catch { showToast('No pudimos leer esa foto') }
   finally { busy.value = false }
 }
 
-function save() {
-  if (!canSave.value) return
-  saveNote(props.dayKey, me.value, { img: img.value, title: title.value.trim(), text: text.value.trim(), mood: mood.value })
-  showToast(existing ? 'Nota actualizada' : `Nota guardada. ${nameOf(partner.value)} ya puede verla`)
-  emit('done')
+function removePhoto() {
+  img.value = null
+  imgChanged.value = true
 }
 
-function remove() {
+async function save() {
+  if (!canSave.value) return
+  saving.value = true
+  try {
+    await saveNote(props.dayKey, me.value, {
+      img: imgChanged.value ? img.value : undefined,
+      title: title.value.trim(), text: text.value.trim(), mood: mood.value
+    })
+    showToast(existing ? 'Nota actualizada' : `Nota guardada. ${nameOf(partner.value)} ya puede verla`)
+    emit('done')
+  } catch { /* el aviso ya se mostró */ } finally { saving.value = false }
+}
+
+async function remove() {
   if (!confirm('¿Borrar tu nota de este día?')) return
-  deleteNote(props.dayKey, me.value)
-  showToast('Nota borrada')
-  emit('done')
+  saving.value = true
+  try {
+    await deleteNote(props.dayKey, me.value)
+    showToast('Nota borrada')
+    emit('done')
+  } catch { /* el aviso ya se mostró */ } finally { saving.value = false }
 }
 
 // Dictado por voz (si el navegador lo soporta)
@@ -93,7 +111,7 @@ onBeforeUnmount(() => rec?.abort())
           <AppIcon name="image" :size="18" /> {{ img ? 'Cambiar' : 'Galería' }}
           <input type="file" accept="image/*" class="sr-only" @change="onFile" />
         </label>
-        <button v-if="img" type="button" class="pill" aria-label="Quitar foto" @click="img = null"><AppIcon name="trash" :size="18" /></button>
+        <button v-if="img" type="button" class="pill" aria-label="Quitar foto" @click="removePhoto"><AppIcon name="trash" :size="18" /></button>
       </div>
     </div>
 
@@ -112,7 +130,7 @@ onBeforeUnmount(() => rec?.abort())
     </fieldset>
 
     <button type="submit" class="btn block" :class="accent" :disabled="!canSave">
-      {{ existing ? 'Guardar cambios' : 'Guardar mi nota' }} <AppIcon name="heartfill" :size="20" />
+      {{ saving ? 'Guardando…' : existing ? 'Guardar cambios' : 'Guardar mi nota' }} <AppIcon name="heartfill" :size="20" />
     </button>
     <p class="foot">{{ nameOf(partner) }} la verá en el calendario con tu puntito {{ me === 'ella' ? 'rosa' : 'azul' }}</p>
     <button v-if="existing" type="button" class="delete" @click="remove"><AppIcon name="trash" :size="16" /> Borrar mi nota</button>

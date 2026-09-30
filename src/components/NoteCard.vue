@@ -1,7 +1,7 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import AppIcon from './AppIcon.vue'
-import { dayNotes, me, nameOf, initialOf, partnerOf, toggleLove, showToast } from '@/store/diary'
+import { state, dayNotes, me, nameOf, initialOf, partnerOf, toggleLove, showToast, loadPhoto } from '@/store/diary'
 import { timeOf, dayMonth } from '@/lib/dates'
 
 const props = defineProps({ dayKey: String, who: String, compact: Boolean })
@@ -10,6 +10,8 @@ const emit = defineEmits(['edit'])
 const note = computed(() => dayNotes(props.dayKey)[props.who])
 const mine = computed(() => props.who === me.value)
 const zoom = ref(false)
+const photo = computed(() => state.photos[`${props.dayKey}_${props.who}`] ?? note.value?.thumb)
+watch(() => [props.dayKey, note.value?.updatedAt], () => loadPhoto(props.dayKey, props.who).catch(() => {}), { immediate: true })
 const pop = ref(false)
 
 const loveLabel = computed(() => {
@@ -38,8 +40,8 @@ async function share() {
       <span v-if="note.mood" class="mood">{{ note.mood }}</span>
     </header>
 
-    <button v-if="note.img" class="photo" aria-label="Ver foto completa" @click="zoom = true">
-      <img :src="note.img" alt="" />
+    <button v-if="note.hasPhoto" class="photo" aria-label="Ver foto completa" @click="zoom = true">
+      <img :src="photo" alt="" />
     </button>
 
     <div class="actions">
@@ -64,7 +66,7 @@ async function share() {
     <Teleport to="body">
       <Transition name="zoom">
         <div v-if="zoom" class="lightbox" role="dialog" aria-label="Foto" @click="zoom = false">
-          <img :src="note.img" alt="" />
+          <img :src="photo" alt="" />
           <button class="icon-btn close" aria-label="Cerrar"><AppIcon name="x" /></button>
         </div>
       </Transition>

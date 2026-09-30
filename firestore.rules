@@ -1,0 +1,46 @@
+rules_version = '2';
+
+// Sin Firebase Auth las reglas no pueden saber quién hace la petición,
+// así que solo validan la forma de los datos. Pégalas en Firestore > Reglas.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function validRole(r) { return r in ['ella', 'el']; }
+
+    match /users/{userId} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasAll(['email', 'name', 'role', 'passwordHash', 'coupleId'])
+                    && validRole(request.resource.data.role)
+                    && request.resource.data.passwordHash is string
+                    && request.resource.data.passwordHash.matches('^\\$2[aby]\\$.*');
+      // correo, rol y pareja no se cambian después de crearse
+      allow update: if request.resource.data.email == resource.data.email
+                    && request.resource.data.role == resource.data.role
+                    && request.resource.data.coupleId == resource.data.coupleId;
+      allow delete: if true;
+    }
+
+    match /couples/{coupleId} {
+      allow read, create, update: if true;
+      allow delete: if false;
+
+      match /notes/{noteId} {
+        allow read, delete: if true;
+        allow create, update: if validRole(request.resource.data.role)
+                              && noteId == request.resource.data.date + '_' + request.resource.data.role
+                              && request.resource.data.text.size() <= 5000;
+      }
+
+      match /photos/{noteId} {
+        allow read, write: if true;
+      }
+    }
+
+    match /invites/{code} {
+      allow read, create: if true;
+      // una invitación usada ya no se reutiliza
+      allow update: if resource.data.usedBy == null;
+      allow delete: if resource.data.usedBy == null;
+    }
+  }
+}

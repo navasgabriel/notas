@@ -7,7 +7,7 @@ const props = defineProps({ dayKey: String, selected: Boolean, large: Boolean })
 const emit = defineEmits(['select'])
 
 const notes = computed(() => dayNotes(props.dayKey))
-const photos = computed(() => ['ella', 'el'].map(w => notes.value[w]?.img).filter(Boolean))
+const photos = computed(() => ['ella', 'el'].map(w => notes.value[w]?.thumb).filter(Boolean))
 const loved = computed(() => notes.value.ella?.loved || notes.value.el?.loved)
 const isToday = computed(() => props.dayKey === todayKey())
 const isFuture = computed(() => props.dayKey > todayKey())

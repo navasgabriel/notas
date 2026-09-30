@@ -1,21 +1,53 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { login } from '@/store/diary'
+import { login, register } from '@/store/diary'
 import { scene } from '@/lib/scene'
 
 const router = useRouter()
+const mode = ref('login') // 'login' | 'register'
+const name = ref('')
 const email = ref('')
 const password = ref('')
 const who = ref('ella')
+const inviteCode = ref('')
+const hasInvite = ref(false)
 const error = ref('')
+const loading = ref(false)
 
-function submit() {
+const isRegister = computed(() => mode.value === 'register')
+
+function setMode(m) {
+  mode.value = m
+  error.value = ''
+}
+
+async function submit() {
+  error.value = ''
+  if (isRegister.value && !name.value.trim()) return (error.value = 'Escribe tu nombre')
   if (!/^\S+@\S+\.\S+$/.test(email.value)) return (error.value = 'Revisa tu correo')
-  if (password.value.length < 4) return (error.value = 'La contraseña debe tener al menos 4 caracteres')
-  // Prototipo sin backend: cualquier correo y contraseña válidos entran.
-  login(email.value.trim(), who.value)
-  router.replace('/')
+  if (password.value.length < 6) return (error.value = 'La contraseña debe tener al menos 6 caracteres')
+  if (isRegister.value && hasInvite.value && inviteCode.value.trim().length !== 6) return (error.value = 'El código tiene 6 caracteres')
+
+  loading.value = true
+  try {
+    if (isRegister.value) {
+      await register({
+        name: name.value.trim(),
+        email: email.value,
+        password: password.value,
+        role: who.value,
+        inviteCode: hasInvite.value ? inviteCode.value : undefined
+      })
+    } else {
+      await login(email.value, password.value)
+    }
+    router.replace(isRegister.value && !hasInvite.value ? '/nosotros' : '/')
+  } catch (e) {
+    error.value = e?.message && e.code ? e.message : 'No pudimos conectar, revisa tu internet'
+  } finally {
+    loading.value = false
+  }
 }
 
 const floaters = [
@@ -65,21 +97,40 @@ const floaters = [
         <h1 class="brand">Nuestros <span>Días</span></h1>
         <p class="tagline">un diario para dos, un día a la vez</p>
 
+        <div class="tabs" role="tablist">
+          <button type="button" role="tab" :aria-selected="!isRegister" :class="{ on: !isRegister }" @click="setMode('login')">Entrar</button>
+          <button type="button" role="tab" :aria-selected="isRegister" :class="{ on: isRegister }" @click="setMode('register')">Crear cuenta</button>
+        </div>
+
+        <label v-if="isRegister" class="field"><span>Tu nombre</span>
+          <input v-model="name" type="text" placeholder="Yorbelis" autocomplete="given-name" maxlength="20" @input="error = ''" />
+        </label>
         <label class="field"><span>Correo</span>
           <input v-model="email" type="email" placeholder="tucorreo@ejemplo.com" autocomplete="email" @input="error = ''" />
         </label>
         <label class="field"><span>Contraseña</span>
-          <input v-model="password" type="password" placeholder="••••••••" autocomplete="current-password" @input="error = ''" />
+          <input v-model="password" type="password" placeholder="••••••••" :autocomplete="isRegister ? 'new-password' : 'current-password'" @input="error = ''" />
         </label>
 
-        <div class="who-pick" role="radiogroup" aria-label="¿Quién eres?">
-          <label class="who ella"><input v-model="who" type="radio" value="ella" /><span><i class="dot ella" />Soy ella</span></label>
-          <label class="who el"><input v-model="who" type="radio" value="el" /><span><i class="dot el" />Soy él</span></label>
-        </div>
+        <template v-if="isRegister">
+          <label class="invite-toggle">
+            <input v-model="hasInvite" type="checkbox" />
+            <span>Mi pareja ya creó el diario y tengo su código</span>
+          </label>
+          <label v-if="hasInvite" class="field"><span>Código de invitación</span>
+            <input v-model="inviteCode" class="code" type="text" placeholder="ABC123" maxlength="6" autocomplete="off" @input="inviteCode = inviteCode.toUpperCase(); error = ''" />
+          </label>
+          <div v-else class="who-pick" role="radiogroup" aria-label="¿Quién eres?">
+            <label class="who ella"><input v-model="who" type="radio" value="ella" /><span><i class="dot ella" />Soy ella</span></label>
+            <label class="who el"><input v-model="who" type="radio" value="el" /><span><i class="dot el" />Soy él</span></label>
+          </div>
+        </template>
 
         <p v-if="error" class="error" role="alert">{{ error }}</p>
-        <button class="btn primary block" type="submit">Entrar a nuestro diario</button>
-        <p class="small">Prototipo: cualquier correo y contraseña entran.</p>
+        <button class="btn primary block" type="submit" :disabled="loading">
+          {{ loading ? 'Un momento…' : isRegister ? (hasInvite ? 'Unirme a nuestro diario' : 'Crear nuestro diario') : 'Entrar a nuestro diario' }}
+        </button>
+        <p v-if="isRegister && !hasInvite" class="small">Al crearlo te daremos un código para que tu pareja se una.</p>
       </form>
     </main>
   </div>
@@ -106,6 +157,12 @@ const floaters = [
 .who input:focus-visible + span { outline: 3px solid var(--ella); outline-offset: 2px; }
 .who.ella input:checked + span { border-color: var(--ella); background: var(--ella-soft); color: var(--ella-deep); }
 .who.el input:checked + span { border-color: var(--el); background: var(--el-soft); color: var(--el-deep); }
+.tabs { display: flex; width: 100%; background: var(--sand); border-radius: 16px; padding: 4px; margin-bottom: 18px; }
+.tabs button { flex: 1; height: 42px; border: 0; border-radius: 12px; background: transparent; font: 600 16px var(--f-display); color: var(--muted); transition: all .15s; }
+.tabs button.on { background: #fff; color: var(--ink); box-shadow: 0 4px 10px -6px rgba(74, 63, 85, .5); }
+.invite-toggle { display: flex; align-items: center; gap: 10px; width: 100%; margin: 2px 0 14px; font-weight: 700; font-size: 14px; color: var(--ink-2); cursor: pointer; }
+.invite-toggle input { width: 20px; height: 20px; accent-color: var(--ella-deep); flex: none; }
+.code { text-transform: uppercase; letter-spacing: 6px; font: 600 22px var(--f-display) !important; text-align: center; }
 .error { width: 100%; margin: 0 0 12px; padding: 10px 14px; border-radius: 12px; background: var(--ella-soft); color: var(--ella-deep); font-weight: 700; font-size: 14px; }
 .small { margin-top: 16px; font-size: 13px; color: var(--muted); text-align: center; }
 

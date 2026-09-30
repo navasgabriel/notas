@@ -2,12 +2,13 @@
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppIcon from '@/components/AppIcon.vue'
-import { memories, nameOf } from '@/store/diary'
+import { memories, nameOf, loadRecent } from '@/store/diary'
 import { dayMonth, fromKey } from '@/lib/dates'
 
 const route = useRoute()
 const router = useRouter()
 const q = ref('')
+loadRecent(500).catch(() => {})
 
 const FILTERS = [
   { id: 'todos', label: 'Todos' },
@@ -52,7 +53,7 @@ const open = key => router.push({ path: '/', query: { dia: key } })
 
     <TransitionGroup v-if="list.length" name="list" tag="div" class="grid">
       <button v-for="m in list" :key="m.key + m.who" class="card-mem" :class="m.who" @click="open(m.key)">
-        <img v-if="m.note.img" :src="m.note.img" alt="" loading="lazy" />
+        <img v-if="m.note.thumb" :src="m.note.thumb" alt="" loading="lazy" />
         <div v-else class="text-only">{{ m.note.text }}</div>
         <span class="cap">{{ m.note.title || 'Sin título' }}</span>
         <span class="by">

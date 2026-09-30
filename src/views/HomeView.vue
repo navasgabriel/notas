@@ -7,7 +7,7 @@ import DayPanel from '@/components/DayPanel.vue'
 import NoteEditor from '@/components/NoteEditor.vue'
 import BottomSheet from '@/components/BottomSheet.vue'
 import MemoriesStrip from '@/components/MemoriesStrip.vue'
-import { state, me, nameOf, initialOf, memories } from '@/store/diary'
+import { state, me, nameOf, initialOf, memories, loadMonth } from '@/store/diary'
 import { todayKey, fromKey, daysBetween } from '@/lib/dates'
 import { useMedia, DESKTOP } from '@/lib/useMedia'
 
@@ -29,6 +29,8 @@ watch(selected, key => {
   view.value = { y: d.getFullYear(), m: d.getMonth() }
 })
 
+watch(view, v => loadMonth(v.y, v.m), { immediate: true })
+
 function changeMonth(step) {
   const d = new Date(view.value.y, view.value.m + step, 1)
   view.value = { y: d.getFullYear(), m: d.getMonth() }
@@ -49,7 +51,7 @@ const hello = computed(() => {
   const h = new Date().getHours()
   return h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches'
 })
-const recent = computed(() => memories.value.filter(m => m.note.img).slice(0, 12))
+const recent = computed(() => memories.value.filter(m => m.note.thumb).slice(0, 12))
 </script>
 
 <template>

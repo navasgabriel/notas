@@ -9,7 +9,7 @@ const emit = defineEmits(['open'])
 <template>
   <div class="strip">
     <button v-for="m in items" :key="m.key + m.who" class="polaroid" @click="emit('open', m.key)">
-      <img :src="m.note.img" alt="" loading="lazy" />
+      <img :src="m.note.thumb" alt="" loading="lazy" />
       <span class="cap">{{ m.note.title || m.note.text }}</span>
       <span class="by"><i class="dot" :class="m.who" />{{ nameOf(m.who) }} · {{ shortDate(m.key) }}</span>
     </button>
