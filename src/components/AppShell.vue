@@ -80,7 +80,21 @@ const links = [
 .fab.el { background: var(--el-deep); box-shadow: 0 14px 26px -12px rgba(63, 127, 180, .9); }
 .fab b { font: 600 28px/1 var(--f-display); }
 .fab small { font: 800 9px var(--f-ui); letter-spacing: 1px; text-transform: uppercase; opacity: .92; }
-.fab:not(.done) { animation: nudge 3s ease-in-out infinite; }
+/* mientras no se haya escrito hoy: se mueve, brilla y le pasa un destello */
+.fab.ella { --glow: 224, 126, 152; }
+.fab.el { --glow: 94, 157, 208; }
+.fab:not(.done) { position: relative; overflow: hidden; animation: nudge 3s ease-in-out infinite, glow 2s ease-in-out infinite; }
+.fab:not(.done)::before {
+  content: ""; position: absolute; top: -20%; bottom: -20%; left: -60%; width: 45%; pointer-events: none;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .75), transparent);
+  transform: skewX(-20deg); animation: shine 3s ease-in-out infinite;
+}
+@keyframes glow {
+  0%, 100% { box-shadow: 0 14px 26px -12px rgba(var(--glow), .9), 0 0 0 0 rgba(var(--glow), .55); }
+  50% { box-shadow: 0 14px 26px -12px rgba(var(--glow), .9), 0 0 0 10px rgba(var(--glow), 0); }
+}
+@keyframes shine { 0%, 55% { left: -60%; } 85%, 100% { left: 120%; } }
+@media (prefers-reduced-motion: reduce) { .fab:not(.done), .fab:not(.done)::before { animation: none; } }
 @keyframes nudge { 0%, 88%, 100% { transform: rotate(0); } 91% { transform: rotate(-8deg); } 94% { transform: rotate(8deg); } 97% { transform: rotate(-4deg); } }
 
 @media (min-width: 1024px) {

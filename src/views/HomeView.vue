@@ -7,8 +7,8 @@ import DayPanel from '@/components/DayPanel.vue'
 import NoteEditor from '@/components/NoteEditor.vue'
 import BottomSheet from '@/components/BottomSheet.vue'
 import CouplePhotos from '@/components/CouplePhotos.vue'
-import { state, me, nameOf, initialOf, loadMonth } from '@/store/diary'
-import { todayKey, fromKey, daysBetween } from '@/lib/dates'
+import { me, nameOf, initialOf, loadMonth } from '@/store/diary'
+import { todayKey, fromKey } from '@/lib/dates'
 import { useMedia, DESKTOP } from '@/lib/useMedia'
 
 const route = useRoute()
@@ -46,11 +46,6 @@ const write = () => router.replace({ query: { dia: selected.value, escribir: '1'
 const backToDay = () => router.replace({ query: { dia: selected.value } })
 const close = () => router.replace({ query: {} })
 
-const together = computed(() => (state.couple.since ? daysBetween(state.couple.since) : null))
-const hello = computed(() => {
-  const h = new Date().getHours()
-  return h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches'
-})
 </script>
 
 <template>
@@ -59,10 +54,10 @@ const hello = computed(() => {
     <div class="left">
       <header class="top">
         <div class="couple">
-          <div class="avatars"><span class="avatar ella">{{ initialOf('ella') }}</span><span class="avatar el">{{ initialOf('el') }}</span></div>
+          <span class="avatar" :class="me">{{ initialOf(me) }}</span>
           <div class="names">
-            <span class="hello">{{ hello }}, {{ nameOf(me) }}</span>
-            <small v-if="together !== null">{{ nameOf('ella') }} &amp; {{ nameOf('el') }} · {{ together }} días juntos</small>
+            <span class="hello">Hola, {{ nameOf(me) }}</span>
+            <small>¿Quieres publicar un recuerdo?</small>
           </div>
         </div>
         <RouterLink to="/recuerdos" class="icon-btn" aria-label="Buscar recuerdos"><AppIcon name="search" /></RouterLink>
@@ -74,13 +69,7 @@ const hello = computed(() => {
         @select="select" @change-month="changeMonth" @today="goToday"
       />
 
-      <template v-if="!isDesktop">
-        <div class="sec-head">
-          <h3>Nuestras fotos</h3>
-          <RouterLink to="/recuerdos">Ver todas</RouterLink>
-        </div>
-        <CouplePhotos @open="select" />
-      </template>
+      <CouplePhotos v-if="!isDesktop" @open="select" />
     </div>
 
     <!-- ======= escritorio: panel lateral ======= -->
@@ -109,9 +98,6 @@ const hello = computed(() => {
 .names { display: flex; flex-direction: column; min-width: 0; }
 .hello { font: 600 19px/1.1 var(--f-display); }
 .names small { font: 700 13px var(--f-ui); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sec-head { display: flex; align-items: center; justify-content: space-between; margin: 26px 4px 12px; }
-.sec-head h3 { margin: 0; font: 600 22px var(--f-display); }
-.sec-head a { font-weight: 800; font-size: 14px; color: var(--ella-deep); text-decoration: none; padding: 8px 4px; }
 
 .swap-enter-active, .swap-leave-active { transition: opacity .18s ease, transform .18s ease; }
 .swap-enter-from { opacity: 0; transform: translateY(8px); }

@@ -202,7 +202,8 @@ export async function toggleFavorite(key) {
   catch (e) {
     if (prev) state.favorites[key] = prev
     else delete state.favorites[key]
-    showToast('No se pudo guardar el favorito'); console.error(e)
+    showToast(e?.code === 'permission-denied' ? 'Firestore no permite guardar favoritos: faltan publicar las reglas' : 'No se pudo guardar el favorito')
+    console.error(e)
   }
 }
 
