@@ -70,7 +70,7 @@ const close = () => router.replace({ query: {} })
       <CalendarCard
         :year="view.y" :month="view.m" :selected="openKey ?? (isDesktop ? selected : null)" :large="isDesktop"
         class="calendar"
-        @select="select" @change-month="changeMonth" @today="goToday"
+        @select="select" @change-month="changeMonth" @today="goToday" @go="view = $event"
       />
 
       <CouplePhotos v-if="!isDesktop" @open="select" />
