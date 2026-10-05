@@ -6,8 +6,8 @@ import CalendarCard from '@/components/CalendarCard.vue'
 import DayPanel from '@/components/DayPanel.vue'
 import NoteEditor from '@/components/NoteEditor.vue'
 import BottomSheet from '@/components/BottomSheet.vue'
-import MemoriesStrip from '@/components/MemoriesStrip.vue'
-import { state, me, nameOf, initialOf, memories, loadMonth } from '@/store/diary'
+import CouplePhotos from '@/components/CouplePhotos.vue'
+import { state, me, nameOf, initialOf, loadMonth } from '@/store/diary'
 import { todayKey, fromKey, daysBetween } from '@/lib/dates'
 import { useMedia, DESKTOP } from '@/lib/useMedia'
 
@@ -51,7 +51,6 @@ const hello = computed(() => {
   const h = new Date().getHours()
   return h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches'
 })
-const recent = computed(() => memories.value.filter(m => m.note.thumb).slice(0, 12))
 </script>
 
 <template>
@@ -75,12 +74,12 @@ const recent = computed(() => memories.value.filter(m => m.note.thumb).slice(0, 
         @select="select" @change-month="changeMonth" @today="goToday"
       />
 
-      <template v-if="!isDesktop && recent.length">
+      <template v-if="!isDesktop">
         <div class="sec-head">
-          <h3>Nuestros recuerdos</h3>
-          <RouterLink to="/recuerdos">Ver todos</RouterLink>
+          <h3>Nuestras fotos</h3>
+          <RouterLink to="/recuerdos">Ver todas</RouterLink>
         </div>
-        <MemoriesStrip :items="recent" @open="select" />
+        <CouplePhotos @open="select" />
       </template>
     </div>
 

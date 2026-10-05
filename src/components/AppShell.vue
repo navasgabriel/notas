@@ -15,6 +15,7 @@ const together = computed(() => (state.couple.since ? daysBetween(state.couple.s
 const links = [
   { to: '/', label: 'Calendario', icon: 'cal', name: 'home' },
   { to: '/recuerdos', label: 'Recuerdos', icon: 'photos', name: 'memories' },
+  { to: '/favoritos', label: 'Días favoritos', icon: 'star', name: 'favorites' },
   { to: '/nosotros', label: 'Nosotros', icon: 'users', name: 'couple' }
 ]
 </script>
@@ -46,12 +47,12 @@ const links = [
     <!-- celular -->
     <nav class="bottom-nav" aria-label="Principal">
       <RouterLink :to="links[0].to" class="nav-btn" :class="{ on: route.name === 'home' }" aria-label="Calendario"><AppIcon name="cal" :size="24" /><span>Calendario</span></RouterLink>
-      <RouterLink :to="links[1].to" class="nav-btn" :class="{ on: route.name === 'memories' && route.query.filtro !== 'favoritos' }" aria-label="Recuerdos"><AppIcon name="photos" :size="24" /><span>Recuerdos</span></RouterLink>
+      <RouterLink :to="links[1].to" class="nav-btn" :class="{ on: route.name === 'memories' }" aria-label="Recuerdos"><AppIcon name="photos" :size="24" /><span>Recuerdos</span></RouterLink>
       <button class="fab" :class="[me, { done: wroteToday }]" :aria-label="wroteToday ? 'Ver el día de hoy' : 'Escribir la nota de hoy'" @click="openToday">
         <b>{{ todayNum }}</b><small>{{ wroteToday ? 'hoy' : 'escribir' }}</small>
       </button>
-      <RouterLink :to="{ path: '/recuerdos', query: { filtro: 'favoritos' } }" class="nav-btn" :class="{ on: route.query.filtro === 'favoritos' }" aria-label="Favoritos"><AppIcon name="heart" :size="24" /><span>Favoritos</span></RouterLink>
-      <RouterLink :to="links[2].to" class="nav-btn" :class="{ on: route.name === 'couple' }" aria-label="Nosotros"><AppIcon name="users" :size="24" /><span>Nosotros</span></RouterLink>
+      <RouterLink :to="links[2].to" class="nav-btn" :class="{ on: route.name === 'favorites' }" aria-label="Días favoritos"><AppIcon name="star" :size="24" /><span>Favoritos</span></RouterLink>
+      <RouterLink :to="links[3].to" class="nav-btn" :class="{ on: route.name === 'couple' }" aria-label="Nosotros"><AppIcon name="users" :size="24" /><span>Nosotros</span></RouterLink>
     </nav>
   </div>
 </template>

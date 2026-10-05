@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { dayNotes, nameOf } from '@/store/diary'
+import { dayNotes, nameOf, isFavorite } from '@/store/diary'
 import { fromKey, dayMonth, todayKey } from '@/lib/dates'
 
 const props = defineProps({ dayKey: String, selected: Boolean, large: Boolean })
@@ -9,20 +9,21 @@ const emit = defineEmits(['select'])
 const notes = computed(() => dayNotes(props.dayKey))
 const photos = computed(() => ['ella', 'el'].map(w => notes.value[w]?.thumb).filter(Boolean))
 const loved = computed(() => notes.value.ella?.loved || notes.value.el?.loved)
+const fav = computed(() => isFavorite(props.dayKey))
 const isToday = computed(() => props.dayKey === todayKey())
 const isFuture = computed(() => props.dayKey > todayKey())
 const num = computed(() => fromKey(props.dayKey).getDate())
 
 const label = computed(() => {
   const who = ['ella', 'el'].filter(w => notes.value[w]).map(nameOf)
-  return `${dayMonth(props.dayKey)}${who.length ? ', notas de ' + who.join(' y ') : ', sin notas'}`
+  return `${dayMonth(props.dayKey)}${fav.value ? ', día favorito' : ''}${who.length ? ', notas de ' + who.join(' y ') : ', sin notas'}`
 })
 </script>
 
 <template>
   <button
     class="day"
-    :class="{ photo: photos.length, today: isToday, selected, future: isFuture, large }"
+    :class="{ photo: photos.length, fav, today: isToday, selected, future: isFuture, large }"
     :disabled="isFuture"
     :aria-label="label"
     :aria-pressed="selected"
@@ -33,6 +34,7 @@ const label = computed(() => {
     </span>
     <span class="num">{{ num }}</span>
     <span v-if="loved" class="hrt" aria-hidden="true">♥</span>
+    <span v-if="fav" class="star" aria-hidden="true">★</span>
     <span class="dots">
       <i v-if="notes.ella" class="dot ella" />
       <i v-if="notes.el" class="dot el" />
@@ -61,6 +63,8 @@ const label = computed(() => {
 .dots .dot { width: 7px; height: 7px; box-shadow: 0 0 0 1.5px #fff; }
 .hrt { position: absolute; right: 4px; top: 2px; font-size: 11px; color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, .45); z-index: 1; }
 .day:not(.photo) .hrt { color: var(--ella); text-shadow: none; }
+.star { position: absolute; left: 4px; top: 1px; font-size: 12px; color: var(--honey); text-shadow: 0 1px 3px rgba(0, 0, 0, .35); z-index: 1; }
+.fav:not(.photo) { background: #FFF3D6; }
 .today { box-shadow: inset 0 0 0 2.5px var(--ink); }
 .today.photo::before { content: ""; position: absolute; inset: 0; border: 2.5px solid var(--ink); border-radius: 12px; z-index: 2; pointer-events: none; }
 .selected { outline: 3px solid var(--ella); outline-offset: 2px; }
@@ -73,5 +77,7 @@ const label = computed(() => {
 .large .dots { justify-content: flex-start; left: 10px; bottom: 8px; }
 .large .dots .dot { width: 9px; height: 9px; }
 .large .hrt { font-size: 14px; right: 8px; top: 6px; }
+.large .star { font-size: 15px; left: auto; right: 26px; top: 5px; }
+.large:not(.photo):not(:has(.hrt)) .star { right: 8px; }
 .large.today.photo::before { border-radius: 14px; }
 </style>

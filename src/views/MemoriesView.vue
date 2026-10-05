@@ -82,7 +82,7 @@ header p { margin: 2px 0 16px; font: 700 22px var(--f-script); color: var(--mute
 
 .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
 .card-mem { border: 0; text-align: left; background: #fff; padding: 8px 8px 12px; border-radius: 8px; box-shadow: 0 10px 22px -14px rgba(74, 63, 85, .6); transition: transform .2s; min-width: 0; }
-.card-mem:hover { transform: translateY(-3px) rotate(-.5deg); }
+.card-mem:hover { transform: translateY(-3px); }
 .card-mem img, .text-only { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 4px; }
 .text-only { padding: 12px; overflow: hidden; font: 18px/1.3 var(--f-hand); color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; }
 .card-mem.ella .text-only { background: var(--ella-soft); }

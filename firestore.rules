@@ -34,6 +34,12 @@ service cloud.firestore {
       match /photos/{noteId} {
         allow read, write: if true;
       }
+
+      match /favorites/{date} {
+        allow read, delete: if true;
+        allow create, update: if request.resource.data.date == date
+                              && date.matches('^\\d{4}-\\d{2}-\\d{2}$');
+      }
     }
 
     match /invites/{code} {

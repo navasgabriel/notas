@@ -7,6 +7,7 @@ export const router = createRouter({
     { path: '/login', name: 'login', component: () => import('./views/LoginView.vue'), meta: { public: true } },
     { path: '/', name: 'home', component: () => import('./views/HomeView.vue') },
     { path: '/recuerdos', name: 'memories', component: () => import('./views/MemoriesView.vue') },
+    { path: '/favoritos', name: 'favorites', component: () => import('./views/FavoritesView.vue') },
     { path: '/nosotros', name: 'couple', component: () => import('./views/CoupleView.vue') },
     { path: '/:pathMatch(.*)*', redirect: '/' }
   ]

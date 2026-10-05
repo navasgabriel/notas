@@ -7,6 +7,7 @@ import * as api from '@/services/db'
  * notes  = { 'YYYY-MM-DD': { ella?: Note, el?: Note } }   ← caché de lo ya cargado
  * Note   = { title, text, mood, thumb, hasPhoto, loved, createdAt (ms), updatedAt (ms) }
  * photos = { 'YYYY-MM-DD_role': dataURL }                ← fotos completas ya pedidas
+ * favorites = { 'YYYY-MM-DD': { by, createdAt (ms) } }    ← días favoritos de la pareja
  */
 export const state = reactive({
   ready: false,
@@ -14,6 +15,7 @@ export const state = reactive({
   couple: { ella: '', el: '', since: null, inviteCode: null, members: { ella: null, el: null } },
   notes: {},
   photos: {},
+  favorites: {},
   loadedMonths: {},
   toast: null
 })
@@ -56,8 +58,9 @@ async function startSession(userId) {
   writeSession(state.session)
   state.notes = {}
   state.photos = {}
+  state.favorites = {}
   state.loadedMonths = {}
-  await Promise.all([refreshCouple(), loadRecent()])
+  await Promise.all([refreshCouple(), loadRecent(), loadFavorites()])
 }
 
 // ---------- sesión ----------
@@ -75,6 +78,7 @@ export function logout() {
   state.session = null
   state.notes = {}
   state.photos = {}
+  state.favorites = {}
   state.loadedMonths = {}
   writeSession(null)
 }
@@ -180,6 +184,37 @@ export const memories = computed(() =>
     .flatMap(([key, day]) => ['ella', 'el'].filter(w => day[w]).map(who => ({ key, who, note: day[who] })))
     .sort((a, b) => (a.key < b.key ? 1 : a.key > b.key ? -1 : a.who === 'ella' ? -1 : 1))
 )
+
+// ---------- días favoritos ----------
+export const isFavorite = key => !!state.favorites[key]
+
+export async function loadFavorites() {
+  if (!state.session) return
+  const list = await api.listFavorites(state.session.coupleId)
+  state.favorites = Object.fromEntries(list.map(f => [f.date, { by: f.by, createdAt: ms(f.createdAt) }]))
+}
+
+export async function toggleFavorite(key) {
+  const prev = state.favorites[key]
+  if (prev) delete state.favorites[key]
+  else state.favorites[key] = { by: state.session.userId, createdAt: Date.now() }
+  try { await api.setFavorite(state.session.coupleId, key, state.session.userId, !prev) }
+  catch (e) {
+    if (prev) state.favorites[key] = prev
+    else delete state.favorites[key]
+    showToast('No se pudo guardar el favorito'); console.error(e)
+  }
+}
+
+/** Días favoritos, del más reciente al más viejo. */
+export const favoriteDays = computed(() => Object.keys(state.favorites).sort().reverse())
+
+/** Trae las notas de días sueltos que aún no están en caché (p. ej. favoritos viejos). */
+export async function loadDays(keys) {
+  const missing = keys.filter(k => !state.notes[k] && !state.loadedMonths[k.slice(0, 7)])
+  const days = await Promise.all(missing.map(k => api.getDay(state.session.coupleId, k)))
+  days.forEach(day => Object.values(day).forEach(putNote))
+}
 
 // ---------- avisos ----------
 let toastTimer

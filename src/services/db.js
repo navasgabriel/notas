@@ -1,5 +1,5 @@
 import {
-  collection, doc, getDoc, getDocs, updateDoc,
+  collection, doc, getDoc, getDocs, setDoc, deleteDoc, updateDoc,
   query, where, orderBy, limit as qLimit, runTransaction, writeBatch, serverTimestamp
 } from 'firebase/firestore'
 import bcrypt from 'bcryptjs'
@@ -23,6 +23,9 @@ import { resizeDataUrl } from '@/lib/image'
  * couples/{coupleId}/photos/{YYYY-MM-DD_role}     ← foto completa, se pide solo al abrir el día
  *   data (dataURL jpeg), updatedAt
  *
+ * couples/{coupleId}/favorites/{YYYY-MM-DD}       ← si existe, el día es favorito
+ *   date, by (userId), createdAt
+ *
  * invites/{code}
  *   coupleId, role (el lugar libre), createdBy, createdAt, usedBy, usedAt
  *
@@ -37,6 +40,7 @@ const users = collection(db, 'users')
 const couples = collection(db, 'couples')
 const notesOf = coupleId => collection(db, 'couples', coupleId, 'notes')
 const photosOf = coupleId => collection(db, 'couples', coupleId, 'photos')
+const favoritesOf = coupleId => collection(db, 'couples', coupleId, 'favorites')
 
 export const noteId = (date, role) => `${date}_${role}`
 const normalizeEmail = email => email.trim().toLowerCase()
@@ -237,6 +241,20 @@ export async function setLoved(coupleId, date, role, loved) {
 export async function getPhoto(coupleId, date, role) {
   const snap = await getDoc(doc(photosOf(coupleId), noteId(date, role)))
   return snap.exists() ? snap.data().data : null
+}
+
+// ════════════════════════════ DÍAS FAVORITOS ════════════════════════════
+
+/** Todos los días favoritos de la pareja, el más reciente primero. */
+export async function listFavorites(coupleId) {
+  const snap = await getDocs(query(favoritesOf(coupleId), orderBy('date', 'desc')))
+  return snap.docs.map(withId)
+}
+
+export async function setFavorite(coupleId, date, by, favorite) {
+  const ref = doc(favoritesOf(coupleId), date)
+  if (favorite) await setDoc(ref, { date, by, createdAt: serverTimestamp() })
+  else await deleteDoc(ref)
 }
 
 // ════════════════════════════ INVITACIONES ════════════════════════════
