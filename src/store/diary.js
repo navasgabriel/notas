@@ -1,13 +1,15 @@
 import { reactive, computed } from 'vue'
 import * as api from '@/services/db'
+import { describeNudge } from '@/lib/nudges'
 
 /**
  * Estado de la app, respaldado por Firestore (src/services/db.js).
  *
  * notes  = { 'YYYY-MM-DD': { ella?: Note, el?: Note } }   ← caché de lo ya cargado
- * Note   = { title, text, mood, thumb, hasPhoto, loved, createdAt (ms), updatedAt (ms) }
+ * Note   = { title, text, moods: string[], thumb, hasPhoto, loved, createdAt (ms), updatedAt (ms) }
  * photos = { 'YYYY-MM-DD_role': dataURL }                ← fotos completas ya pedidas
  * favorites = { 'YYYY-MM-DD': { by, createdAt (ms) } }    ← días favoritos de la pareja
+ * nudges = [{ id, type, date, emoji, text }]              ← avisos recibidos que falta mostrar
  */
 export const state = reactive({
   ready: false,
@@ -16,6 +18,9 @@ export const state = reactive({
   notes: {},
   photos: {},
   favorites: {},
+  favoritesReady: false,
+  nudges: [],
+  notifyPermission: typeof Notification === 'undefined' ? 'unsupported' : Notification.permission,
   loadedMonths: {},
   toast: null
 })
@@ -60,7 +65,8 @@ async function startSession(userId) {
   state.photos = {}
   state.favorites = {}
   state.loadedMonths = {}
-  await Promise.all([refreshCouple(), loadRecent(), loadFavorites()])
+  await Promise.all([refreshCouple(), loadRecent()])
+  startLive()
 }
 
 // ---------- sesión ----------
@@ -75,10 +81,13 @@ export async function register(data) {
 }
 
 export function logout() {
+  stopLive()
   state.session = null
   state.notes = {}
   state.photos = {}
   state.favorites = {}
+  state.favoritesReady = false
+  state.nudges = []
   state.loadedMonths = {}
   writeSession(null)
 }
@@ -117,7 +126,7 @@ export const dayNotes = key => state.notes[key] ?? {}
 function putNote(n) {
   const day = state.notes[n.date] ?? (state.notes[n.date] = {})
   day[n.role] = {
-    title: n.title ?? '', text: n.text ?? '', mood: n.mood ?? '',
+    title: n.title ?? '', text: n.text ?? '', moods: n.moods ?? (n.mood ? [n.mood] : []),
     thumb: n.thumb ?? null, hasPhoto: !!n.hasPhoto, loved: !!n.loved,
     createdAt: ms(n.createdAt), updatedAt: ms(n.updatedAt)
   }
@@ -156,13 +165,15 @@ export async function loadPhoto(key, who) {
 }
 
 /** img: dataURL nuevo · null quita la foto · undefined no la toca */
-export async function saveNote(key, who, { title, text, mood, img }) {
+export async function saveNote(key, who, { title, text, moods, img }) {
+  const isNew = !dayNotes(key)[who]
   const saved = await guard(() =>
-    api.saveNote(state.session.coupleId, { date: key, role: who, authorId: state.session.userId, title, text, mood, img })
+    api.saveNote(state.session.coupleId, { date: key, role: who, authorId: state.session.userId, title, text, moods, img })
   )
   putNote(saved)
   if (img) state.photos[`${key}_${who}`] = img
   if (img === null) delete state.photos[`${key}_${who}`]
+  if (isNew) notifyPartner('wrote', key)
 }
 
 export async function deleteNote(key, who) {
@@ -174,7 +185,10 @@ export async function toggleLove(key, who) {
   const note = state.notes[key]?.[who]
   if (!note) return
   note.loved = !note.loved
-  try { await api.setLoved(state.session.coupleId, key, who, note.loved) }
+  try {
+    await api.setLoved(state.session.coupleId, key, who, note.loved)
+    if (note.loved) notifyPartner('loved', key)
+  }
   catch (e) { note.loved = !note.loved; showToast('No se pudo guardar el corazón'); console.error(e) }
 }
 
@@ -188,17 +202,16 @@ export const memories = computed(() =>
 // ---------- días favoritos ----------
 export const isFavorite = key => !!state.favorites[key]
 
-export async function loadFavorites() {
-  if (!state.session) return
-  const list = await api.listFavorites(state.session.coupleId)
-  state.favorites = Object.fromEntries(list.map(f => [f.date, { by: f.by, createdAt: ms(f.createdAt) }]))
-}
-
 export async function toggleFavorite(key) {
   const prev = state.favorites[key]
+  // un día vacío no se puede marcar (sí desmarcar, por si se borraron sus notas)
+  if (!prev && !state.notes[key]) return showToast('Escribe algo ese día para poder marcarlo como favorito')
   if (prev) delete state.favorites[key]
   else state.favorites[key] = { by: state.session.userId, createdAt: Date.now() }
-  try { await api.setFavorite(state.session.coupleId, key, state.session.userId, !prev) }
+  try {
+    await api.setFavorite(state.session.coupleId, key, state.session.userId, !prev)
+    if (!prev) notifyPartner('favorite', key)
+  }
   catch (e) {
     if (prev) state.favorites[key] = prev
     else delete state.favorites[key]
@@ -215,6 +228,63 @@ export async function loadDays(keys) {
   const missing = keys.filter(k => !state.notes[k] && !state.loadedMonths[k.slice(0, 7)])
   const days = await Promise.all(missing.map(k => api.getDay(state.session.coupleId, k)))
   days.forEach(day => Object.values(day).forEach(putNote))
+}
+
+// ---------- en vivo: avisos y favoritos ----------
+let unwatch = []
+
+function startLive() {
+  stopLive()
+  const { coupleId, who } = state.session
+  unwatch = [
+    api.watchNudges(coupleId, who, receiveNudge, e => console.error(e)),
+    api.watchFavorites(coupleId, list => {
+      state.favorites = Object.fromEntries(list.map(f => [f.date, { by: f.by, createdAt: ms(f.createdAt) }]))
+      state.favoritesReady = true
+    }, e => console.error(e))
+  ]
+}
+
+function stopLive() {
+  unwatch.forEach(stop => stop())
+  unwatch = []
+}
+
+async function receiveNudge(n) {
+  api.deleteNudge(state.session.coupleId, n.id).catch(e => console.error(e))
+  const { emoji, text } = describeNudge(n, nameOf(n.from))
+  state.nudges.push({ id: n.id, type: n.type, date: n.date, emoji, text })
+
+  // si la pestaña no está a la vista, notificación del sistema
+  if (document.hidden && state.notifyPermission === 'granted') {
+    try { new Notification('Nuestros Días', { body: `${emoji} ${text}`, icon: '/favicon.svg', tag: n.id }) }
+    catch { /* algunos celulares solo permiten notificaciones desde un service worker */ }
+  }
+
+  // trae la nota para que el calendario se actualice solo
+  if (n.date && (n.type === 'wrote' || n.type === 'loved')) {
+    api.getDay(state.session.coupleId, n.date).then(day => Object.values(day).forEach(putNote)).catch(() => {})
+  }
+}
+
+export const dismissNudge = id => (state.nudges = state.nudges.filter(n => n.id !== id))
+
+/** Aviso manual a la pareja ('love', 'hug', …). */
+export async function sendNudge(type) {
+  await guard(() => api.sendNudge(state.session.coupleId, { from: me.value, to: partner.value, type }))
+  showToast(`Enviado a ${nameOf(partner.value)}`)
+}
+
+/** Aviso automático: si falla no molesta a quien escribió. */
+function notifyPartner(type, date) {
+  if (!partnerJoined.value) return
+  api.sendNudge(state.session.coupleId, { from: me.value, to: partner.value, type, date }).catch(e => console.error(e))
+}
+
+export async function enableNotifications() {
+  if (state.notifyPermission === 'unsupported') return
+  state.notifyPermission = await Notification.requestPermission()
+  showToast(state.notifyPermission === 'granted' ? 'Listo, te avisaremos aunque estés en otra pestaña' : 'El navegador no dio permiso para notificar')
 }
 
 // ---------- avisos ----------

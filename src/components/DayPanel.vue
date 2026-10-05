@@ -12,6 +12,7 @@ const emit = defineEmits(['write', 'close'])
 const notes = computed(() => dayNotes(props.dayKey))
 const year = computed(() => fromKey(props.dayKey).getFullYear())
 const fav = computed(() => isFavorite(props.dayKey))
+const empty = computed(() => !notes.value.ella && !notes.value.el)
 const kicker = computed(() => (props.dayKey === todayKey() ? `hoy, ${weekday(props.dayKey)}` : weekday(props.dayKey)))
 </script>
 
@@ -21,6 +22,7 @@ const kicker = computed(() => (props.dayKey === todayKey() ? `hoy, ${weekday(pro
       <h2><small>{{ kicker }}</small>{{ dayMonth(dayKey) }}<span v-if="year !== new Date().getFullYear()">, {{ year }}</span></h2>
       <div class="head-actions">
         <button
+          v-if="!empty || fav"
           class="icon-btn fav-btn" :class="{ on: fav }" :aria-pressed="fav"
           :aria-label="fav ? 'Quitar de días favoritos' : 'Marcar como día favorito'"
           :title="fav ? 'Día favorito' : 'Marcar como favorito'"

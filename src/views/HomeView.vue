@@ -7,6 +7,7 @@ import DayPanel from '@/components/DayPanel.vue'
 import NoteEditor from '@/components/NoteEditor.vue'
 import BottomSheet from '@/components/BottomSheet.vue'
 import CouplePhotos from '@/components/CouplePhotos.vue'
+import NudgeButton from '@/components/NudgeButton.vue'
 import { me, nameOf, initialOf, loadMonth } from '@/store/diary'
 import { todayKey, fromKey } from '@/lib/dates'
 import { useMedia, DESKTOP } from '@/lib/useMedia'
@@ -60,7 +61,10 @@ const close = () => router.replace({ query: {} })
             <small>¿Quieres publicar un recuerdo?</small>
           </div>
         </div>
-        <RouterLink to="/recuerdos" class="icon-btn" aria-label="Buscar recuerdos"><AppIcon name="search" /></RouterLink>
+        <div class="top-actions">
+          <NudgeButton />
+          <RouterLink to="/recuerdos" class="icon-btn" aria-label="Buscar recuerdos"><AppIcon name="search" /></RouterLink>
+        </div>
       </header>
 
       <CalendarCard
@@ -94,6 +98,7 @@ const close = () => router.replace({ query: {} })
 
 <style scoped>
 .top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.top-actions { display: flex; gap: 2px; }
 .couple { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .names { display: flex; flex-direction: column; min-width: 0; }
 .hello { font: 600 19px/1.1 var(--f-display); }

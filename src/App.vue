@@ -1,6 +1,7 @@
 <script setup>
 import { useRoute } from 'vue-router'
 import AppShell from './components/AppShell.vue'
+import NudgeAlert from './components/NudgeAlert.vue'
 import { state } from './store/diary'
 
 const route = useRoute()
@@ -11,6 +12,7 @@ const route = useRoute()
   <AppShell v-else>
     <RouterView />
   </AppShell>
+  <NudgeAlert v-if="state.session" />
 
   <Transition name="toast">
     <div v-if="state.toast" class="toast" role="status">{{ state.toast }}</div>

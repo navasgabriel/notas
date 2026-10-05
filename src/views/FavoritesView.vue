@@ -1,16 +1,11 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import AppIcon from '@/components/AppIcon.vue'
-import { dayNotes, nameOf, favoriteDays, toggleFavorite, loadFavorites, loadDays } from '@/store/diary'
+import { state, dayNotes, favoriteDays, toggleFavorite, loadDays } from '@/store/diary'
 import { dayMonth, weekday, fromKey } from '@/lib/dates'
 
 const router = useRouter()
-const loading = ref(true)
-
-loadFavorites()
-  .catch(() => {})
-  .finally(() => (loading.value = false))
 watch(favoriteDays, keys => loadDays(keys).catch(() => {}), { immediate: true })
 
 const cards = computed(() =>
@@ -62,7 +57,7 @@ const open = key => router.push({ path: '/', query: { dia: key } })
       </article>
     </TransitionGroup>
 
-    <div v-else-if="!loading" class="empty">
+    <div v-else-if="state.favoritesReady" class="empty">
       <AppIcon name="star" :size="40" />
       <p>Aún no tienen días favoritos</p>
       <small>Abre un día del calendario y toca la estrella para guardarlo aquí</small>

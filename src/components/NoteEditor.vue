@@ -4,7 +4,7 @@ import AppIcon from './AppIcon.vue'
 import { state, dayNotes, me, partner, nameOf, saveNote, deleteNote, showToast, loadPhoto } from '@/store/diary'
 import { dayMonth, weekday, todayKey } from '@/lib/dates'
 import { compressImage } from '@/lib/image'
-import { randomPrompt, MOODS } from '@/lib/prompts'
+import { randomPrompt, MOODS, MAX_MOODS } from '@/lib/prompts'
 
 const props = defineProps({ dayKey: String })
 const emit = defineEmits(['done', 'cancel'])
@@ -16,7 +16,7 @@ const imgChanged = ref(false)
 if (existing?.hasPhoto) loadPhoto(props.dayKey, me.value).then(full => { if (full && !imgChanged.value) img.value = full }).catch(() => {})
 const title = ref(existing?.title ?? '')
 const text = ref(existing?.text ?? '')
-const mood = ref(existing?.mood ?? '')
+const moods = ref([...(existing?.moods ?? [])])
 const prompt = ref(randomPrompt())
 const busy = ref(false)
 const saving = ref(false)
@@ -47,11 +47,18 @@ async function save() {
   try {
     await saveNote(props.dayKey, me.value, {
       img: imgChanged.value ? img.value : undefined,
-      title: title.value.trim(), text: text.value.trim(), mood: mood.value
+      title: title.value.trim(), text: text.value.trim(), moods: moods.value
     })
     showToast(existing ? 'Nota actualizada' : `Nota guardada. ${nameOf(partner.value)} ya puede verla`)
     emit('done')
   } catch { /* el aviso ya se mostró */ } finally { saving.value = false }
+}
+
+function toggleMood(label) {
+  const i = moods.value.indexOf(label)
+  if (i >= 0) moods.value.splice(i, 1)
+  else if (moods.value.length >= MAX_MOODS) showToast(`Puedes elegir hasta ${MAX_MOODS} emociones`)
+  else moods.value.push(label)
 }
 
 async function remove() {
@@ -125,8 +132,15 @@ onBeforeUnmount(() => rec?.abort())
     </div>
 
     <fieldset class="moods">
-      <legend class="ed-label" :class="accent">¿Cómo te sentiste?</legend>
-      <button v-for="m in MOODS[me]" :key="m" type="button" :class="{ on: mood === m, [accent]: true }" :aria-pressed="mood === m" @click="mood = mood === m ? '' : m">{{ m }}</button>
+      <legend class="ed-label" :class="accent">¿Cómo te sentiste? <span class="count">{{ moods.length }}/{{ MAX_MOODS }}</span></legend>
+      <div class="mood-row">
+        <button
+          v-for="m in MOODS[me]" :key="m.label" type="button"
+          :class="{ on: moods.includes(m.label), full: moods.length >= MAX_MOODS && !moods.includes(m.label), [accent]: true }"
+          :aria-pressed="moods.includes(m.label)"
+          @click="toggleMood(m.label)"
+        ><span class="emoji" aria-hidden="true">{{ m.emoji }}</span>{{ m.label }}</button>
+      </div>
     </fieldset>
 
     <button type="submit" class="btn block" :class="accent" :disabled="!canSave">
@@ -153,7 +167,7 @@ h2 small { display: block; font: 700 23px var(--f-script); color: var(--muted); 
 .pill { border: 0; height: 44px; padding: 0 14px; border-radius: 14px; background: rgba(255, 255, 255, .94); display: flex; align-items: center; gap: 6px; font-weight: 800; font-size: 14px; cursor: pointer; box-shadow: 0 6px 14px -8px rgba(0, 0, 0, .35); }
 .pill:focus-within { outline: 3px solid var(--ella); }
 
-.ed-label { display: block; font: 800 13px var(--f-ui); text-transform: uppercase; letter-spacing: 1px; margin: 22px 4px 6px; padding: 0; }
+.ed-label { display: block; font: 700 13px var(--f-ui); margin: 22px 4px 6px; padding: 0; }
 .ed-label.rose { color: var(--ella-deep); }
 .ed-label.blue { color: var(--el-deep); }
 .ed-title { width: 100%; border: 0; background: transparent; font: 600 26px var(--f-display); padding: 4px; outline: none; }
@@ -168,9 +182,21 @@ h2 small { display: block; font: 700 23px var(--f-script); color: var(--muted); 
 .tools { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 .tool { border: 0; height: 38px; padding: 0 12px; border-radius: 12px; background: var(--sand); font-weight: 700; font-size: 13px; color: var(--ink-2); display: flex; align-items: center; gap: 6px; }
 .tool.rec { background: var(--ella-soft); color: var(--ella-deep); animation: pulse 1.2s ease-in-out infinite; }
-.moods { border: 0; margin: 0 0 22px; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
-.moods legend { margin-bottom: 8px; }
-.moods button { flex: 1 1 22%; min-width: 72px; height: 44px; border-radius: 14px; border: 2px solid var(--line); background: #fff; font: 600 14px var(--f-display); color: var(--ink-2); transition: all .15s; }
+.moods { border: 0; margin: 32px 0 22px; padding: 0; min-width: 0; }
+.moods legend { margin: 0 4px 8px; }
+.moods .count { margin-left: 4px; color: var(--muted); }
+.moods button.full { opacity: .5; }
+.mood-row {
+  display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none;
+  margin: 0 -18px; padding: 2px 18px 6px; scroll-padding: 0 18px;
+}
+.mood-row::-webkit-scrollbar { display: none; }
+.moods button {
+  flex: none; scroll-snap-align: start; display: flex; align-items: center; gap: 6px;
+  height: 44px; padding: 0 14px; border-radius: 14px; border: 2px solid var(--line); background: #fff;
+  font: 600 14px var(--f-display); color: var(--ink-2); white-space: nowrap; transition: all .15s;
+}
+.moods .emoji { font-size: 18px; line-height: 1; }
 .moods button.on.rose { border-color: var(--ella); background: var(--ella-soft); color: var(--ella-deep); }
 .moods button.on.blue { border-color: var(--el); background: var(--el-soft); color: var(--el-deep); }
 .foot { text-align: center; font-size: 13px; color: var(--muted); font-weight: 700; margin: 12px 0 0; }

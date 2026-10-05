@@ -35,6 +35,14 @@ service cloud.firestore {
         allow read, write: if true;
       }
 
+      match /nudges/{nudgeId} {
+        allow read, delete: if true;
+        allow create: if validRole(request.resource.data.from)
+                      && validRole(request.resource.data.to)
+                      && request.resource.data.type is string;
+        allow update: if false;
+      }
+
       match /favorites/{date} {
         allow read, delete: if true;
         allow create, update: if request.resource.data.date == date

@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import AppIcon from './AppIcon.vue'
 import { state, dayNotes, me, nameOf, initialOf, partnerOf, toggleLove, showToast, loadPhoto } from '@/store/diary'
 import { timeOf, dayMonth } from '@/lib/dates'
+import { moodEmoji } from '@/lib/prompts'
 
 const props = defineProps({ dayKey: String, who: String, compact: Boolean })
 const emit = defineEmits(['edit'])
@@ -37,7 +38,9 @@ async function share() {
   <article class="note" :class="[who, { compact }]">
     <header class="head">
       <span class="chip" :class="who"><span class="avatar" :class="who">{{ initialOf(who) }}</span>Nota de {{ who === 'ella' ? 'ella' : 'él' }}</span>
-      <span v-if="note.mood" class="mood">{{ note.mood }}</span>
+      <span v-if="note.moods.length" class="moods">
+        <span v-for="m in note.moods" :key="m" class="mood">{{ moodEmoji(m) }} {{ m }}</span>
+      </span>
     </header>
 
     <button v-if="note.hasPhoto" class="photo" aria-label="Ver foto completa" @click="zoom = true">
@@ -79,7 +82,9 @@ async function share() {
 .note.ella { border-top: 6px solid var(--ella); }
 .note.el { border-top: 6px solid var(--el); }
 .head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.mood { font: 700 20px var(--f-script); color: var(--muted); padding-right: 6px; }
+.head { flex-wrap: wrap; }
+.moods { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 2px 10px; padding-right: 6px; }
+.mood { font: 700 20px var(--f-script); color: var(--muted); white-space: nowrap; }
 .photo { display: block; width: 100%; border: 0; padding: 0; margin-top: 12px; border-radius: 18px; overflow: hidden; background: var(--sand); cursor: zoom-in; }
 .photo img { display: block; width: 100%; aspect-ratio: 4 / 3.4; object-fit: cover; transition: transform .4s ease; }
 .photo:hover img { transform: scale(1.03); }

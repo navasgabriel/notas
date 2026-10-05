@@ -1,6 +1,6 @@
 import {
-  collection, doc, getDoc, getDocs, setDoc, deleteDoc, updateDoc,
-  query, where, orderBy, limit as qLimit, runTransaction, writeBatch, serverTimestamp
+  collection, doc, getDoc, getDocs, setDoc, deleteDoc, updateDoc, deleteField,
+  query, where, orderBy, limit as qLimit, runTransaction, writeBatch, serverTimestamp, onSnapshot, addDoc
 } from 'firebase/firestore'
 import bcrypt from 'bcryptjs'
 import { db } from './firebase'
@@ -17,7 +17,7 @@ import { resizeDataUrl } from '@/lib/image'
  *   since ('YYYY-MM-DD'), inviteCode, createdAt, updatedAt
  *
  * couples/{coupleId}/notes/{YYYY-MM-DD_role}      ← el calendario sale de aquí
- *   date, month ('YYYY-MM'), role, authorId, title, text, mood,
+ *   date, month ('YYYY-MM'), role, authorId, title, text, moods (['Feliz', …]; antes `mood` string),
  *   thumb (miniatura ~240px), hasPhoto, loved, createdAt, updatedAt
  *
  * couples/{coupleId}/photos/{YYYY-MM-DD_role}     ← foto completa, se pide solo al abrir el día
@@ -25,6 +25,9 @@ import { resizeDataUrl } from '@/lib/image'
  *
  * couples/{coupleId}/favorites/{YYYY-MM-DD}       ← si existe, el día es favorito
  *   date, by (userId), createdAt
+ *
+ * couples/{coupleId}/nudges/{auto}                 ← avisos en vivo; quien los recibe los borra
+ *   from ('ella' | 'el'), to, type ('love' | 'hug' | … | 'loved' | 'wrote'), date?, createdAt
  *
  * invites/{code}
  *   coupleId, role (el lugar libre), createdBy, createdAt, usedBy, usedAt
@@ -41,6 +44,7 @@ const couples = collection(db, 'couples')
 const notesOf = coupleId => collection(db, 'couples', coupleId, 'notes')
 const photosOf = coupleId => collection(db, 'couples', coupleId, 'photos')
 const favoritesOf = coupleId => collection(db, 'couples', coupleId, 'favorites')
+const nudgesOf = coupleId => collection(db, 'couples', coupleId, 'nudges')
 
 export const noteId = (date, role) => `${date}_${role}`
 const normalizeEmail = email => email.trim().toLowerCase()
@@ -198,14 +202,14 @@ export async function listNotes(coupleId, { max = 60 } = {}) {
  * Crea o actualiza la nota de `role` en `date`.
  * `img`: dataURL nuevo · `null` quita la foto · `undefined` la deja igual.
  */
-export async function saveNote(coupleId, { date, role, authorId, title = '', text = '', mood = '', img }) {
+export async function saveNote(coupleId, { date, role, authorId, title = '', text = '', moods = [], img }) {
   const id = noteId(date, role)
   const ref = doc(notesOf(coupleId), id)
   const prev = await getDoc(ref)
 
   const data = {
     date, month: date.slice(0, 7), role, authorId,
-    title: title.trim(), text: text.trim(), mood,
+    title: title.trim(), text: text.trim(), moods, mood: deleteField(),
     updatedAt: serverTimestamp()
   }
   if (!prev.exists()) Object.assign(data, { loved: false, hasPhoto: false, thumb: null, createdAt: serverTimestamp() })
@@ -245,16 +249,37 @@ export async function getPhoto(coupleId, date, role) {
 
 // ════════════════════════════ DÍAS FAVORITOS ════════════════════════════
 
-/** Todos los días favoritos de la pareja, el más reciente primero. */
-export async function listFavorites(coupleId) {
-  const snap = await getDocs(query(favoritesOf(coupleId), orderBy('date', 'desc')))
-  return snap.docs.map(withId)
+/** Escucha en vivo los días favoritos de la pareja. Devuelve la función para dejar de escuchar. */
+export function watchFavorites(coupleId, onChange, onError) {
+  return onSnapshot(favoritesOf(coupleId), snap => onChange(snap.docs.map(withId)), onError)
 }
 
 export async function setFavorite(coupleId, date, by, favorite) {
   const ref = doc(favoritesOf(coupleId), date)
   if (favorite) await setDoc(ref, { date, by, createdAt: serverTimestamp() })
   else await deleteDoc(ref)
+}
+
+// ════════════════════════════ AVISOS EN VIVO ════════════════════════════
+
+export async function sendNudge(coupleId, { from, to, type, date = null }) {
+  await addDoc(nudgesOf(coupleId), { from, to, type, date, createdAt: serverTimestamp() })
+}
+
+/**
+ * Escucha los avisos para `to`. Llama a `onNudge` una vez por aviso nuevo
+ * (también los que llegaron mientras la app estaba cerrada). Devuelve la función para dejar de escuchar.
+ */
+export function watchNudges(coupleId, to, onNudge, onError) {
+  return onSnapshot(
+    query(nudgesOf(coupleId), where('to', '==', to)),
+    snap => snap.docChanges().forEach(c => c.type === 'added' && onNudge(withId(c.doc))),
+    onError
+  )
+}
+
+export async function deleteNudge(coupleId, id) {
+  await deleteDoc(doc(nudgesOf(coupleId), id))
 }
 
 // ════════════════════════════ INVITACIONES ════════════════════════════
